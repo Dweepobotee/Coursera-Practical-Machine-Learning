@@ -1,0 +1,112 @@
+---
+title: "Project Practical Machine Learning"
+output: html_document
+author: Dweepobotee Brahma
+---
+
+## Introduction
+This is the project report for Coursera's Practical Machine Learning Course. In this project the Human Activity Recognition dataset is used to evaluate how well participants perform exercises. I use data from 6 participants' activities from using accelerometers on the belt, forearm, arm, and dumbell.The participants were asked to perform barbell lifts correctly and incorrectly in five different ways and this information was recorded in the 'classe' variable. In this analysis I fit different models to predict the 'classe' variable.
+
+## Data Processing
+
+### Importing the data
+First the following packages are loaded.
+```{r}
+library(caret)
+library(rpart)
+library(rpart.plot)
+library(RColorBrewer)
+library(rattle)
+library(randomForest)
+library(knitr)
+```
+
+Next we import the dataset.
+```{r}
+trainurl<-"https://d396qusza40orc.cloudfront.net/predmachlearn/pml-training.csv"
+testurl<-"https://d396qusza40orc.cloudfront.net/predmachlearn/pml-testing.csv"
+train<-read.csv(url(trainurl), na.strings=c("NA","#DIV/0!", ""))
+test<-read.csv(url(testurl), na.strings=c("NA", "#DIV/0!", ""))
+```
+
+### Cleaning the data
+First the columns containing missing observations are deleted.
+```{r}
+train<-train[,colSums(is.na(train))==0]
+test<-test[,colSums(is.na(test))==0]
+```
+
+Next, the first 7 columns are removed because they dont have any information relevant to prediction.
+```{r}
+train<-train[, -c(1:7)]
+test<-test[, -c(1:7)]
+```
+
+```{r}
+dim(train)
+```
+
+```{r}
+dim(test)
+```
+
+### Data Splitting
+We split the training data set into training and validation dataset with 60& of the observations in the training set and the rest in the validation set.
+```{r}
+set.seed(1705)
+createtrain<-createDataPartition(train$classe, p=0.6, list=FALSE)
+train<-train[createtrain,]
+valid<-train[-createtrain,]
+```
+
+## Prediction Models
+
+### Classification Tree
+
+We first fit a classification tree to the dataset. We perform 5-fold cross validation which will save computing time since the dataset is moderately large.
+
+```{r}
+control<-trainControl(method="cv", number=5)
+fit.rpart<-train(classe~.,data=train, method="rpart", trControl=control)
+print(fit.rpart)
+fancyRpartPlot(fit.rpart$finalModel)
+```
+
+Using this fitted classification tree we try to predict the outcomes in the validation set.
+```{r}
+predict.valid<-predict(fit.rpart, valid)
+```
+
+Displaying the prediction results.
+```{r}
+conf.valid<-confusionMatrix(valid$classe,predict.valid)
+(accuracy.valid<-conf.valid$overall[1])
+```
+
+We see that the accuracy rate is close to 0.5 which is the out-of-sample error rate. Thus the classification tree model does not perform very well in predicting the outcome 'classe'. 
+
+### Random Forest
+
+To improve the prediction performance we fit a random forest model next.
+```{r}
+fit.rf<-train(classe~., data=train, method="rf", trControl=control)
+print(fit.rf)
+```
+
+Using this fitted random forest model we try ro predict the outcomes of the validation set. 
+```{r}
+predict.rf<-predict(fit.rf,valid)
+(conf.rf<-confusionMatrix(valid$classe,predict.rf))
+(accuracy.rf<-conf.rf$overall[1])
+```
+
+The accuracy rate is almost 1 so the out-of-sample error rate is almost 0. This implies that the random forest model performs very well in our data.
+
+## Prediction on test set
+
+Using our fitted random forest model we predict our test set.
+```{r}
+(predict(fit.rf,test))
+```
+
+This concludes the project for this course.
